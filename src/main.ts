@@ -1,18 +1,18 @@
 import consola from "consola";
-import fs from "fs/promises";
+import fs from "fs";
 import path from "path";
 
 import { GenerateItemsEnum } from "./lib/GenerateItemsEnum.ts";
 
 const itemsJsonPath = path.join(process.cwd(), "items.json");
 
-async function main() {
+function main() {
   try {
     // @note time start
     const startTime = Date.now();
 
     const generator = new GenerateItemsEnum();
-    await generator.loadFromFile(itemsJsonPath);
+    generator.loadFromFile(itemsJsonPath);
 
     const itemsVersion = generator.itemsVersion;
     const itemsCount = generator.itemsCount;
@@ -37,7 +37,7 @@ ${creditComment}${enumString}
 #endif // ITEMS_ENUM_H
 `;
 
-    await fs.writeFile(path.join(process.cwd(), "ItemsEnum.h"), result, "utf-8");
+    fs.writeFileSync(path.join(process.cwd(), "ItemsEnum.h"), result, "utf-8");
     consola.success("Enum generated successfully:\n");
 
     // @note time end

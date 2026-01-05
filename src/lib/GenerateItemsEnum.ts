@@ -1,4 +1,4 @@
-import fs from "fs/promises";
+import fs from "fs";
 
 // @note interfaces for items.json structure
 interface ItemData {
@@ -13,35 +13,24 @@ interface ItemsFile {
 }
 
 export class GenerateItemsEnum {
-  // @note cached regex patterns for sanitizeEnumName
-  private static readonly SANITIZE_REGEX = /[^A-Za-z0-9_ ]/g;
-  private static readonly SPACE_REGEX = / /g;
-  private static readonly DIGIT_START_REGEX = /^[0-9]/;
+  // @note cached regex for sanitization (combines non-alphanumeric removal + space to underscore)
+  private static readonly SANITIZE_REGEX = /[^A-Za-z0-9_]+/g;
   private static readonly INVALID_NAMES = new Set(["", "0", "NULL", "NONE", "N"]);
 
-  private filePath: string;
-  private itemsData: ItemsFile | null;
-
-  constructor() {
-    this.filePath = "items.json";
-    this.itemsData = null;
-  }
+  private itemsData: ItemsFile | null = null;
 
   // @note loadFromFile - loads items.json from given path, validates file type
-  public async loadFromFile(filePath: string = "items.json"): Promise<void> {
-    this.filePath = filePath;
-
-    if (!this.filePath.endsWith(".json")) {
-      throw new Error(`Invalid file type. Expected a .json file: ${this.filePath}`);
+  public loadFromFile(filePath: string): void {
+    if (!filePath.endsWith(".json")) {
+      throw new Error(`Invalid file type. Expected a .json file: ${filePath}`);
     }
 
-    const fileStat = await fs.stat(this.filePath);
+    const fileStat = fs.statSync(filePath);
     if (!fileStat.isFile()) {
-      throw new Error(`Not a valid file: ${this.filePath}`);
+      throw new Error(`Not a valid file: ${filePath}`);
     }
 
-    const fileContent = await fs.readFile(this.filePath, "utf-8");
-    this.itemsData = JSON.parse(fileContent);
+    this.itemsData = JSON.parse(fs.readFileSync(filePath, "utf-8"));
   }
 
   get itemsVersion(): number {
@@ -58,29 +47,35 @@ export class GenerateItemsEnum {
       throw new Error("Items data not loaded. Please load data before building enum.");
     }
 
+    const items = this.itemsData.items;
+    const len = items.length;
     const indent = " ".repeat(tabSize);
-    const lines: string[] = [];
+    const invalidNames = GenerateItemsEnum.INVALID_NAMES;
+    const regex = GenerateItemsEnum.SANITIZE_REGEX;
 
-    for (const item of this.itemsData.items) {
-      const itemName = this.sanitizeEnumName(item.name);
-      if (GenerateItemsEnum.INVALID_NAMES.has(itemName)) continue;
-      lines.push(`${indent}${itemName} = ${item.item_id},`);
+    // @note pre-allocate array for better performance
+    const lines: string[] = new Array(len);
+    let lineIdx = 0;
+
+    for (let i = 0; i < len; i++) {
+      const item = items[i];
+
+      // @note inline sanitization for hot loop performance
+      let sanitized = item.name.trim().replace(regex, "_").toUpperCase();
+
+      // @note handle leading digit
+      if (sanitized.charCodeAt(0) >= 48 && sanitized.charCodeAt(0) <= 57) {
+        sanitized = "_" + sanitized;
+      }
+
+      if (invalidNames.has(sanitized)) continue;
+
+      lines[lineIdx++] = `${indent}${sanitized} = ${item.item_id},`;
     }
+
+    // @note trim unused array slots
+    lines.length = lineIdx;
 
     return `enum eItems {\n${lines.join("\n")}\n};\n`;
-  }
-
-  // @note sanitizeEnumName - converts item name to valid C++ enum identifier
-  private sanitizeEnumName(name: string): string {
-    const sanitized = name
-      .trim()
-      .replace(GenerateItemsEnum.SANITIZE_REGEX, "")
-      .replace(GenerateItemsEnum.SPACE_REGEX, "_")
-      .toUpperCase();
-
-    if (GenerateItemsEnum.DIGIT_START_REGEX.test(sanitized)) {
-      return `_${sanitized}`;
-    }
-    return sanitized;
   }
 }
