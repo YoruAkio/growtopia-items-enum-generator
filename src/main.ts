@@ -2,7 +2,7 @@ import consola from "consola";
 import fs from "fs";
 import path from "path";
 
-import { GenerateItemsEnum } from "./lib/GenerateItemsEnum.js";
+import { GenerateItemsEnum } from "./lib/GenerateItemsEnum";
 
 // Check if items.json exists
 const itemsJsonPath = path.join(process.cwd(), "items.json");
