@@ -28,7 +28,7 @@ async function main() {
     `\nVersion: ${itemsVersion}, Items Count: ${itemsCount}` +
     `\nGenerated on: ${new Date().toISOString()}` +
     `\n\n @see https://github.com/GTPSHAX/growtopia-items-enum-generator - our repository` +
-    `*/\n`;
+    `\n*/\n`;
     const result = `#ifndef ITEMS_ENUM_H\n#define ITEMS_ENUM_H\n\n${creditComment}${enumString}\n#endif // ITEMS_ENUM_H\n`;
 
     fs.writeFileSync(path.join(process.cwd(), "ItemsEnum.h"), result, "utf-8");
